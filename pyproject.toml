@@ -50,13 +50,6 @@ data = [
     "Pillow",
     "h5py",
 ]
-# Optional: Advanced models and visualization
-models = [
-    "timm",
-    "segmentation-models-pytorch",
-    "grad-cam",
-    "ttach",
-]
 # Optional: Analysis and visualization
 viz = [
     "matplotlib",
