@@ -74,6 +74,8 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
         objects.
     """
 
+    utils.log_gpu_memory_metadata()
+
     # set seed for random number generators in pytorch, numpy and python.random
     if cfg.get("seed"):
         log.info(f"Seed everything with <{cfg.seed}>")
@@ -126,6 +128,10 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     if logger:
         log.info("Logging hyperparameters!")
         utils.log_hyperparameters(object_dict)
+
+    # Log metadata
+    log.info("Logging metadata!")
+    utils.log_metadata(cfg)
 
     # Train the model
     if cfg.get("train"):

@@ -25,6 +25,7 @@ dependencies = [
     "pyrootutils",
     "rich",
     "omegaconf",
+    "pynvml",  # For GPU metadata logging
 ]
 
 [project.optional-dependencies]

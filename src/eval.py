@@ -72,6 +72,8 @@ def evaluate(cfg: DictConfig) -> Tuple[dict, dict]:
 
     assert cfg.ckpt_path
 
+    utils.log_gpu_memory_metadata()
+
     # set seed for random number generators in pytorch, numpy and python.random
     if cfg.get("seed"):
         log.info(f"Seed everything with <{cfg.seed}>")
@@ -108,6 +110,10 @@ def evaluate(cfg: DictConfig) -> Tuple[dict, dict]:
     if logger:
         log.info("Logging hyperparameters!")
         utils.log_hyperparameters(object_dict)
+
+    # Log metadata
+    log.info("Logging metadata!")
+    utils.log_metadata(cfg)
 
     if cfg.get("predict"):
         log.info("Starting predicting!")
