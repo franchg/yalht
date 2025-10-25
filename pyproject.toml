@@ -7,7 +7,7 @@ name = "yalht"
 version = "0.1.0"
 description = "Deep Learning training pipeline template based on pytorch_lightning and hydra"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
     { name = "Your Name", email = "your.email@example.com" }
@@ -55,6 +55,10 @@ dev = [
     "pre-commit",
     "pytest",
     "ruff",
+    "mypy",
+    "types-PyYAML",
+    "types-requests",
+    "types-setuptools",
 ]
 loggers = [
     "neptune-client",
@@ -85,7 +89,7 @@ packages = ["src"]
 
 [tool.ruff]
 line-length = 79
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 # Enable pycodestyle (E), Pyflakes (F), isort (I), and others
@@ -100,6 +104,8 @@ select = [
     "C4",     # flake8-comprehensions
     "T20",    # flake8-print
     "SIM",    # flake8-simplify
+    "S",      # flake8-bandit (security)
+    "D",      # pydocstyle (docstring conventions)
 ]
 
 # Ignore specific rules that were ignored in the old flake8 config
@@ -107,6 +113,13 @@ ignore = [
     "E402",   # module level import not at top of file
     "F401",   # imported but unused
     "F841",   # local variable is assigned but never used
+    "S101",   # use of assert (common in tests and ML code)
+    "D100",   # missing docstring in public module
+    "D101",   # missing docstring in public class
+    "D102",   # missing docstring in public method
+    "D103",   # missing docstring in public function
+    "D104",   # missing docstring in public package
+    "D107",   # missing docstring in __init__
 ]
 
 # Exclude directories
@@ -121,8 +134,9 @@ exclude = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
-"tests/*" = ["T20"]       # Allow print statements in tests
+"__init__.py" = ["F401", "D104"]  # Allow unused imports and missing docstrings
+"tests/*" = ["T20", "S101", "D"]  # Allow print, assert, and missing docstrings in tests
+"scripts/*" = ["T20", "D"]        # Allow print and missing docstrings in scripts
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
@@ -134,3 +148,39 @@ lines-after-imports = 2
 quote-style = "double"
 # Indent with spaces
 indent-style = "space"
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings
+convention = "google"
+
+[tool.mypy]
+# Basic options
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Import discovery
+ignore_missing_imports = true
+follow_imports = "normal"
+namespace_packages = true
+
+# Exclude patterns
+exclude = [
+    "^logs/",
+    "^data/",
+    "^notebooks/",
+]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
