@@ -27,8 +27,14 @@ reproducibility.
 git clone https://github.com/gorodnitskiy/yet-another-lightning-hydra-template
 cd yet-another-lightning-hydra-template
 
-# install requirements
-pip install -r requirements.txt
+# install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# install dependencies
+uv sync
+
+# or install with optional dependencies
+uv sync --extra loggers
 ```
 
 Or run the project in docker. See more in [Docker](#docker) section.
@@ -124,18 +130,16 @@ In this particular case, the directory structure looks like:
 ├── .pre-commit-config.yaml     <- Configuration of pre-commit hooks for code formatting
 ├── Dockerfile                  <- Dockerfile
 ├── Makefile                    <- Makefile with commands like `make train` or `make test`
-├── pyproject.toml              <- Configuration options for testing and linting
-├── requirements.txt            <- File for installing python dependencies
-├── setup.py                    <- File for installing project as a package
+├── pyproject.toml              <- Project configuration and dependencies (PEP 621)
 └── README.md
 ```
 
 ## Workflow - how it works
 
-Before starting a project, you need to think about the following things to unsure in results reproducibility:
+Before starting a project, you need to think about the following things to ensure results reproducibility:
 
 - Docker image setting up
-- Freezing python package versions
+- Dependency management with lockfiles (uv.lock)
 - Code Version Control
 - Data Version Control. Many of which currently provide not just Data Version Control, but a lot of side very useful
   features like Model Registry or Experiments Tracking:

@@ -70,12 +70,14 @@ WORKDIR ${WORKDIR_PATH}
 
 # ------------------------------- requirements ------------------------------ #
 
+# Install uv
+RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir uv
+
+# Copy project files
 RUN mkdir /package
 COPY . /package
-# The --root-user-action option is available as of pip v22.1.
-RUN python3 -m pip install --no-cache-dir --upgrade pip && \
-    python3 -m pip install \
-        --no-cache-dir \
-        --root-user-action ignore \
-        -r /package/requirements.txt && \
-    python3 -m pip install --no-cache-dir --root-user-action ignore /package
+
+# Install dependencies with uv
+RUN cd /package && \
+    uv sync --frozen --no-dev

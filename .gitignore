@@ -113,6 +113,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# uv cache directory
+.uv/
+
 # Spyder project settings
 .spyderproject
 .spyproject
