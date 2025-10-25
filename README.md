@@ -619,13 +619,6 @@ Lightning provides [DDP plugins](https://pytorch-lightning.readthedocs.io/en/sta
 custom integrations to the internals of the Trainer such as custom precision, checkpointing or cluster environment
 implementation.
 
-#### GradCam
-
-By default, the template provides [GradCam](https://github.com/jacobgil/pytorch-grad-cam) package which can be extremely
-useful for understanding network decision and explainability in general.
-
-See more details in [package documentation](https://jacobgil.github.io/pytorch-gradcam-book/introduction.html).
-
 ## Hydra configs
 
 [Hydra](https://github.com/facebookresearch/hydra) + [OmegaConf](https://omegaconf.readthedocs.io/en/) provide a
