@@ -9,11 +9,10 @@ from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Callback
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers import Logger as LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from src.modules.losses import load_loss
-from src.modules.metrics import load_metrics
 from src.utils import pylogger, rich_utils
 
 log = pylogger.get_pylogger(__name__)
@@ -328,55 +327,19 @@ def get_args_parser() -> argparse.ArgumentParser:
 def register_custom_resolvers(
     version_base: str, config_path: str, config_name: str
 ) -> Callable:
-    """Optional decorator to register custom OmegaConf resolvers. It is
-    excepted to call before `hydra.main` decorator call.
+    """Optional decorator for custom OmegaConf resolvers.
 
-    Replace resolver: To avoiding copying of loss and metric names in configs,
-    there is custom resolver during hydra initialization which replaces
-    `__loss__` to `loss.__class__.__name__` and `__metric__` to
-    `main_metric.__class__.__name__` For example: ${replace:"__metric__/valid"}
-    Use quotes for defining internal value in ${replace:"..."} to avoid grammar
-    problems with hydra config parser.
+    Currently no custom resolvers are registered. This is kept for
+    potential future use and backward compatibility.
 
     Args:
-        version_base (str): Hydra version base.
-        config_path (str): Hydra config path.
-        config_name (str): Hydra config name.
+        version_base: Hydra version base.
+        config_path: Hydra config path.
+        config_name: Hydra config name.
 
     Returns:
-        Callable: Decorator that registers custom resolvers before running
-            main function.
+        Callable: Decorator that returns the function unchanged.
     """
-
-    # parse additional Hydra's command line flags
-    parser = get_args_parser()
-    args, _ = parser.parse_known_args()
-    if args.config_path:
-        config_path = args.config_path
-    if args.config_dir:
-        config_path = args.config_dir
-    if args.config_name:
-        config_name = args.config_name
-
-    # register of replace resolver
-    if not OmegaConf.has_resolver("replace"):
-        with initialize_config_dir(
-            version_base=version_base, config_dir=config_path
-        ):
-            cfg = compose(
-                config_name=config_name, return_hydra_config=True, overrides=[]
-            )
-        cfg_tmp = cfg.copy()
-        loss = load_loss(cfg_tmp.module.network.loss)
-        metric, _, _ = load_metrics(cfg_tmp.module.network.metrics)
-        GlobalHydra.instance().clear()
-
-        OmegaConf.register_new_resolver(
-            "replace",
-            lambda item: item.replace(
-                "__loss__", loss.__class__.__name__
-            ).replace("__metric__", metric.__class__.__name__),
-        )
 
     def decorator(function: Callable) -> Callable:
         @wraps(function)

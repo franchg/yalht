@@ -25,7 +25,7 @@ class SimpleDenseNet(nn.Module):
         )
 
     def forward(self, x):
-        batch_size, width, height = x.size()
-        # (batch, width, height) -> (batch, width*height)
+        batch_size = x.size(0)
+        # (batch, channels, width, height) -> (batch, channels*width*height)
         x = x.view(batch_size, -1)
         return self.model(x)

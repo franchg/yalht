@@ -4139,7 +4139,6 @@ dependencies = [
     { name = "pytorch-lightning" },
     { name = "rich" },
     { name = "torch" },
-    { name = "torchmetrics" },
     { name = "torchvision" },
 ]
 
@@ -4197,7 +4196,6 @@ requires-dist = [
     { name = "seaborn", marker = "extra == 'viz'" },
     { name = "tensorboard", marker = "extra == 'viz'" },
     { name = "torch", specifier = ">=2.0.0" },
-    { name = "torchmetrics", specifier = ">=1.0.0" },
     { name = "torchvision", specifier = ">=0.15.0" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
     { name = "wandb", marker = "extra == 'loggers'" },

@@ -16,7 +16,6 @@ scheduler:
     factor: 0.1
     min_lr: 1.0e-9
     patience: 10
-    verbose: false
   extras:
     monitor: acc/valid
     interval: epoch
