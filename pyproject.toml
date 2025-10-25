@@ -25,7 +25,7 @@ dependencies = [
     "pyrootutils",
     "rich",
     "omegaconf",
-    "pynvml",  # For GPU metadata logging
+    "nvidia-ml-py",  # For GPU metadata logging (replaces deprecated pynvml)
 ]
 
 [project.optional-dependencies]
