@@ -14,40 +14,18 @@ authors = [
 ]
 dependencies = [
     # --------- pytorch ---------
-    "torch>=1.10.0",
-    "torchvision>=0.11.0",
-    "pytorch-lightning==1.8.3",
-    "torchmetrics==0.11.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "pytorch-lightning>=2.0.0",
+    "torchmetrics>=1.0.0",
     # --------- hydra ---------
-    "hydra-core==1.3.1",
-    "hydra-colorlog==1.2.0",
-    "hydra-optuna-sweeper==1.2.0",
-    # --------- loggers ---------
-    "wandb",
-    # --------- others ---------
+    "hydra-core>=1.3.0",
+    "hydra-colorlog>=1.2.0",
+    "hydra-optuna-sweeper>=1.2.0",
+    # --------- utilities ---------
     "pyrootutils",
     "rich",
-    "sh; platform_system != 'Windows'",
     "omegaconf",
-    "tqdm",
-    "tensorflow",
-    "pynvml",
-    # --------- data ---------
-    "numpy",
-    "Pillow",
-    "opencv-python-headless",
-    "albumentations",
-    "h5py",
-    # --------- models ---------
-    "timm",
-    "segmentation-models-pytorch",
-    # --------- visualization ---------
-    "seaborn",
-    "scikit-learn",
-    "matplotlib",
-    "ipython",
-    "grad-cam==1.3.1",
-    "ttach==0.0.3",
 ]
 
 [project.optional-dependencies]
@@ -57,13 +35,35 @@ dev = [
     "ruff",
     "mypy",
     "types-PyYAML",
-    "types-requests",
-    "types-setuptools",
 ]
+# Optional logging backends
 loggers = [
+    "wandb",
     "neptune-client",
     "mlflow",
     "comet-ml",
+]
+# Optional: Advanced data processing
+data = [
+    "opencv-python-headless",
+    "albumentations",
+    "Pillow",
+    "h5py",
+]
+# Optional: Advanced models and visualization
+models = [
+    "timm",
+    "segmentation-models-pytorch",
+    "grad-cam",
+    "ttach",
+]
+# Optional: Analysis and visualization
+viz = [
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "ipython",
+    "tensorboard",
 ]
 
 [tool.pytest.ini_options]
