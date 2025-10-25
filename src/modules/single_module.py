@@ -1,21 +1,18 @@
-from typing import Any, List
+from typing import Any
 
 import hydra
 import torch
 from omegaconf import DictConfig
-from torch import nn
 
 from src.modules.components.lit_module import BaseLitModule
 from src.modules.losses import load_loss
-from src.modules.metrics import load_metrics
 
 
-class SingleLitModule(BaseLitModule):
-    """Example of LightningModule for MNIST classification.
+class MNISTLitModule(BaseLitModule):
+    """LightningModule for MNIST classification.
 
     A LightningModule organizes your PyTorch code into 6 sections:
         - Computations (init)
-        - Model loop (model_step)
         - Train loop (training_step)
         - Validation loop (validation_step)
         - Test loop (test_step)
@@ -23,7 +20,7 @@ class SingleLitModule(BaseLitModule):
         - Optimizers and LR Schedulers (configure_optimizers)
 
     Docs:
-        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html
+        https://lightning.ai/docs/pytorch/stable/common/lightning_module.html
     """
 
     def __init__(
@@ -35,17 +32,16 @@ class SingleLitModule(BaseLitModule):
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        """LightningModule with standalone train, val and test dataloaders.
+        """Initialize MNIST LightningModule.
 
         Args:
-            network (DictConfig): Network config.
-            optimizer (DictConfig): Optimizer config.
-            scheduler (DictConfig): Scheduler config.
-            logging (DictConfig): Logging config.
-            args (Any): Additional arguments for pytorch_lightning.LightningModule.
-            kwargs (Any): Additional keyword arguments for pytorch_lightning.LightningModule.
+            network: Network config with model, loss, output_activation
+            optimizer: Optimizer config
+            scheduler: Scheduler config
+            logging: Logging config
+            args: Additional arguments for BaseLitModule
+            kwargs: Additional keyword arguments for BaseLitModule
         """
-
         super().__init__(
             network, optimizer, scheduler, logging, *args, **kwargs
         )
@@ -54,302 +50,143 @@ class SingleLitModule(BaseLitModule):
             network.output_activation, _partial_=True
         )
 
-        main_metric, valid_metric_best, add_metrics = load_metrics(
-            network.metrics
-        )
-        self.train_metric = main_metric.clone()
-        self.train_add_metrics = add_metrics.clone(postfix="/train")
-        self.valid_metric = main_metric.clone()
-        self.valid_metric_best = valid_metric_best.clone()
-        self.valid_add_metrics = add_metrics.clone(postfix="/valid")
-        self.test_metric = main_metric.clone()
-        self.test_add_metrics = add_metrics.clone(postfix="/test")
+        # Simple accuracy tracking
+        self.train_correct = 0
+        self.train_total = 0
+        self.valid_correct = 0
+        self.valid_total = 0
+        self.test_correct = 0
+        self.test_total = 0
+        self.valid_acc_best = 0.0
 
         self.save_hyperparameters(logger=False)
 
-    def model_step(self, batch: Any, *args: Any, **kwargs: Any) -> Any:
-        logits = self.forward(batch["image"])
-        loss = self.loss(logits, batch["label"])
-        preds = self.output_activation(logits)
-        return loss, preds, batch["label"]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the model."""
+        return self.model(x)
 
-    def on_train_start(self) -> None:
-        # by default lightning executes validation step sanity checks before
-        # training starts, so we need to make sure valid_metric_best doesn't store
-        # accuracy from these checks
-        self.valid_metric_best.reset()
-
-    def training_step(self, batch: Any, batch_idx: int) -> Any:
-        loss, preds, targets = self.model_step(batch, batch_idx)
-        self.log(
-            f"{self.loss.__class__.__name__}/train",
-            loss,
-            **self.logging_params,
-        )
-
-        self.train_metric(preds, targets)
-        self.log(
-            f"{self.train_metric.__class__.__name__}/train",
-            self.train_metric,
-            **self.logging_params,
-        )
-
-        self.train_add_metrics(preds, targets)
-        self.log_dict(self.train_add_metrics, **self.logging_params)
-
-        # Lightning keeps track of `training_step` outputs and metrics on GPU for
-        # optimization purposes. This works well for medium size datasets, but
-        # becomes an issue with larger ones. It might show up as a CPU memory leak
-        # during training step. Keep it in mind.
-        return {"loss": loss}
-
-    def training_epoch_end(self, outputs: List[Any]) -> None:
-        # `outputs` is a list of dicts returned from `training_step()`
-
-        # Warning: when overriding `training_epoch_end()`, lightning
-        # accumulates outputs from all batches of the epoch
-
-        # consider detaching tensors before returning them from `training_step()`
-        # or using `on_train_epoch_end()` instead which doesn't accumulate outputs
-        pass
-
-    def validation_step(self, batch: Any, batch_idx: int) -> Any:
-        loss, preds, targets = self.model_step(batch, batch_idx)
-        self.log(
-            f"{self.loss.__class__.__name__}/valid",
-            loss,
-            **self.logging_params,
-        )
-
-        self.valid_metric(preds, targets)
-        self.log(
-            f"{self.valid_metric.__class__.__name__}/valid",
-            self.valid_metric,
-            **self.logging_params,
-        )
-
-        self.valid_add_metrics(preds, targets)
-        self.log_dict(self.valid_add_metrics, **self.logging_params)
-        return {"loss": loss}
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        valid_metric = self.valid_metric.compute()  # get current valid metric
-        self.valid_metric_best(valid_metric)  # update best so far valid metric
-        # log `valid_metric_best` as a value through `.compute()` method, instead
-        # of as a metric object otherwise metric would be reset by lightning
-        # after each epoch
-        self.log(
-            f"{self.valid_metric.__class__.__name__}/valid_best",
-            self.valid_metric_best.compute(),
-            **self.logging_params,
-        )
-
-    def test_step(self, batch: Any, batch_idx: int) -> Any:
-        loss, preds, targets = self.model_step(batch, batch_idx)
-        self.log(
-            f"{self.loss.__class__.__name__}/test", loss, **self.logging_params
-        )
-
-        self.test_metric(preds, targets)
-        self.log(
-            f"{self.test_metric.__class__.__name__}/test",
-            self.test_metric,
-            **self.logging_params,
-        )
-
-        self.test_add_metrics(preds, targets)
-        self.log_dict(self.test_add_metrics, **self.logging_params)
-        return {"loss": loss}
-
-    def test_epoch_end(self, outputs: List[Any]) -> None:
-        pass
-
-    def predict_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
-        logits = self.forward(batch["image"])
-        preds = self.output_activation(logits)
-        outputs = {"logits": logits, "preds": preds}
-        if "label" in batch:
-            outputs.update({"targets": batch["label"]})
-        if "name" in batch:
-            outputs.update({"names": batch["name"]})
-        return outputs
-
-
-class MNISTLitModule(SingleLitModule):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-    def model_step(self, batch: Any, *args: Any, **kwargs: Any) -> Any:
+    def model_step(self, batch: Any) -> tuple:
+        """Perform a single model step (used in train/val/test)."""
         x, y = batch
-        logits = self.forward(x["image"])
+        logits = self.forward(x)
         loss = self.loss(logits, y)
         preds = self.output_activation(logits)
         return loss, preds, y
 
+    def on_train_epoch_start(self) -> None:
+        """Reset training metrics at start of epoch."""
+        self.train_correct = 0
+        self.train_total = 0
+
+    def training_step(self, batch: Any, batch_idx: int) -> dict:
+        """Training step."""
+        loss, preds, targets = self.model_step(batch)
+
+        # Calculate accuracy
+        pred_classes = preds.argmax(dim=1)
+        self.train_correct += (pred_classes == targets).sum().item()
+        self.train_total += targets.size(0)
+
+        # Log loss
+        self.log(
+            "loss/train",
+            loss,
+            **self.logging_params,
+        )
+
+        return {"loss": loss}
+
+    def on_train_epoch_end(self) -> None:
+        """Log training accuracy at end of epoch."""
+        if self.train_total > 0:
+            acc = self.train_correct / self.train_total
+            self.log(
+                "acc/train",
+                acc,
+                **self.logging_params,
+            )
+
+    def on_validation_epoch_start(self) -> None:
+        """Reset validation metrics at start of epoch."""
+        self.valid_correct = 0
+        self.valid_total = 0
+
+    def validation_step(self, batch: Any, batch_idx: int) -> dict:
+        """Validation step."""
+        loss, preds, targets = self.model_step(batch)
+
+        # Calculate accuracy
+        pred_classes = preds.argmax(dim=1)
+        self.valid_correct += (pred_classes == targets).sum().item()
+        self.valid_total += targets.size(0)
+
+        # Log loss
+        self.log(
+            "loss/valid",
+            loss,
+            **self.logging_params,
+        )
+
+        return {"loss": loss}
+
+    def on_validation_epoch_end(self) -> None:
+        """Log validation accuracy and track best."""
+        if self.valid_total > 0:
+            acc = self.valid_correct / self.valid_total
+            self.log(
+                "acc/valid",
+                acc,
+                **self.logging_params,
+            )
+
+            # Track best accuracy
+            if acc > self.valid_acc_best:
+                self.valid_acc_best = acc
+
+            self.log(
+                "acc/valid_best",
+                self.valid_acc_best,
+                **self.logging_params,
+            )
+
+    def on_test_epoch_start(self) -> None:
+        """Reset test metrics at start of epoch."""
+        self.test_correct = 0
+        self.test_total = 0
+
+    def test_step(self, batch: Any, batch_idx: int) -> dict:
+        """Test step."""
+        loss, preds, targets = self.model_step(batch)
+
+        # Calculate accuracy
+        pred_classes = preds.argmax(dim=1)
+        self.test_correct += (pred_classes == targets).sum().item()
+        self.test_total += targets.size(0)
+
+        # Log loss
+        self.log(
+            "loss/test",
+            loss,
+            **self.logging_params,
+        )
+
+        return {"loss": loss}
+
+    def on_test_epoch_end(self) -> None:
+        """Log test accuracy at end of epoch."""
+        if self.test_total > 0:
+            acc = self.test_correct / self.test_total
+            self.log(
+                "acc/test",
+                acc,
+                **self.logging_params,
+            )
+
     def predict_step(
         self, batch: Any, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
+    ) -> dict:
+        """Prediction step."""
         x, y = batch
-        logits = self.forward(x["image"])
+        logits = self.forward(x)
         preds = self.output_activation(logits)
         return {"logits": logits, "preds": preds, "targets": y}
-
-
-class SingleVicRegLitModule(BaseLitModule):
-    def __init__(
-        self,
-        network: DictConfig,
-        optimizer: DictConfig,
-        scheduler: DictConfig,
-        logging: DictConfig,
-        proj_hidden_dim: int,
-        proj_output_dim: int,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
-        """LightningModule with standalone train, val and test dataloaders for
-        Self-Supervised task using VicReg approach.
-
-        Args:
-            network (DictConfig): Network config.
-            optimizer (DictConfig): Optimizer config.
-            scheduler (DictConfig): Scheduler config.
-            logging (DictConfig): Logging config.
-            proj_hidden_dim (int): Projector hidden dimensions.
-            proj_output_dim (int): Projector output dimensions.
-            args (Any): Additional arguments for pytorch_lightning.LightningModule.
-            kwargs (Any): Additional keyword arguments for pytorch_lightning.LightningModule.
-        """
-
-        super().__init__(
-            network, optimizer, scheduler, logging, *args, **kwargs
-        )
-        self.loss = load_loss(network.loss)
-        # projector
-        self.projector = nn.Sequential(
-            nn.Linear(self.model.features_dim, proj_hidden_dim),
-            nn.BatchNorm1d(proj_hidden_dim),
-            nn.ReLU(),
-            # nn.Linear(proj_hidden_dim, proj_hidden_dim),
-            # nn.BatchNorm1d(proj_hidden_dim),
-            # nn.ReLU(),
-            nn.Linear(proj_hidden_dim, proj_output_dim),
-        )
-        self.save_hyperparameters(logger=False)
-
-    def forward(self, x: Any) -> Any:
-        x = self.model.forward(x)
-        return self.projector(x)
-
-    def model_step(self, batch: Any, *args: Any, **kwargs: Any) -> Any:
-        z1 = self.forward(batch["z1"])
-        z2 = self.forward(batch["z2"])
-        loss = self.loss(z1, z2)
-        return loss
-
-    def training_step(self, batch: Any, batch_idx: int) -> Any:
-        loss = self.model_step(batch, batch_idx)
-        self.log(
-            f"{self.loss.__class__.__name__}/train",
-            loss,
-            **self.logging_params,
-        )
-        return {"loss": loss}
-
-    def training_epoch_end(self, outputs: List[Any]) -> None:
-        pass
-
-    def validation_step(self, batch: Any, batch_idx: int) -> Any:
-        loss = self.model_step(batch, batch_idx)
-        self.log(
-            f"{self.loss.__class__.__name__}/valid",
-            loss,
-            **self.logging_params,
-        )
-        return {"loss": loss}
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        pass
-
-    def test_step(self, batch: Any, batch_idx: int) -> Any:
-        loss = self.model_step(batch, batch_idx)
-        self.log(
-            f"{self.loss.__class__.__name__}/test", loss, **self.logging_params
-        )
-        return {"loss": loss}
-
-    def test_epoch_end(self, outputs: List[Any]) -> None:
-        pass
-
-
-class SingleReIdLitModule(SingleLitModule):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-    def model_step(self, batch: Any, *args: Any, **kwargs: Any) -> Any:
-        embeddings = self.forward(batch["image"])
-        return embeddings, batch["label"]
-
-    def training_step(self, batch: Any, batch_idx: int) -> Any:
-        embeddings, targets = self.model_step(batch, batch_idx)
-        loss, logits = self.loss(embeddings, batch["label"])
-        preds = self.output_activation(logits)
-        self.log(
-            f"{self.loss.__class__.__name__}/train",
-            loss,
-            **self.logging_params,
-        )
-
-        self.train_metric(preds, targets)
-        self.log(
-            f"{self.train_metric.__class__.__name__}/train",
-            self.train_metric,
-            **self.logging_params,
-        )
-        return {"loss": loss}
-
-    def validation_step(self, batch: Any, batch_idx: int) -> Any:
-        embeddings, targets = self.model_step(batch, batch_idx)
-        with torch.no_grad():
-            loss, logits = self.loss(embeddings, batch["label"])
-        preds = self.output_activation(logits)
-        self.log(
-            f"{self.loss.__class__.__name__}/valid",
-            loss,
-            **self.logging_params,
-        )
-
-        self.valid_metric(preds, targets)
-        self.log(
-            f"{self.valid_metric.__class__.__name__}/valid",
-            self.valid_metric,
-            **self.logging_params,
-        )
-        return {"loss": loss}
-
-    def test_step(self, batch: Any, batch_idx: int) -> Any:
-        embeddings, targets = self.model_step(batch, batch_idx)
-        with torch.no_grad():
-            loss, logits = self.loss(embeddings, batch["label"])
-        preds = self.output_activation(logits)
-        self.log(
-            f"{self.loss.__class__.__name__}/test", loss, **self.logging_params
-        )
-
-        self.test_metric(preds, targets)
-        self.log(
-            f"{self.test_metric.__class__.__name__}/test",
-            self.test_metric,
-            **self.logging_params,
-        )
-        return {"loss": loss}
-
-    def predict_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
-        outputs = {"embeddings": self.forward(batch["image"])}
-        if "name" in batch:
-            outputs.update({"names": batch["name"]})
-        return outputs
